@@ -168,8 +168,13 @@ const buildTextCtx = files => {
   return s;
 };
 
-async function callClaude(msgs, sys, model="claude-sonnet-4-20250514") {
-  const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},
+async function callClaude(msgs, sys, model="claude-sonnet-4-20250514", apiKey="") {
+  const endpoint = typeof window !== "undefined" && window.location.hostname !== "localhost"
+    ? "/api/claude"
+    : "https://api.anthropic.com/v1/messages";
+  const headers = {"Content-Type":"application/json"};
+  if (endpoint === "/api/claude") headers["x-api-key"] = apiKey;
+  const r=await fetch(endpoint,{method:"POST",headers,
     body:JSON.stringify({model,max_tokens:1400,system:sys,messages:msgs})});
   const d=await r.json(); if(d.error) throw new Error(d.error.message);
   return d.content.map(c=>c.text||"").join("");
@@ -184,7 +189,10 @@ async function callGPT(msgs, key, sys, model="gpt-4o") {
   return d.choices[0].message.content;
 }
 async function callGemini(parts, key, sys, model="gemini-1.5-pro") {
-  const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,{
+  const modelId = model==="gemini-1.5-pro" ? "gemini-1.5-pro-latest"
+    : model==="gemini-2.5-pro" ? "gemini-2.5-pro-preview-03-25"
+    : model==="gemini-2.0-flash" ? "gemini-2.0-flash" : model;
+  const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${key}`,{
     method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({system_instruction:{parts:[{text:sys}]},contents:[{role:"user",parts:Array.isArray(parts)?parts:[{text:parts}]}],generationConfig:{maxOutputTokens:1400}})});
   const d=await r.json(); if(d.error) throw new Error(d.error.message);
@@ -284,7 +292,7 @@ function ModelSelector({label, color, models, value, onChange}) {
 // ─────────────────────────────────────────────────────────────
 // SETTINGS PANEL
 // ─────────────────────────────────────────────────────────────
-function SettingsPanel({gptKey,setGptKey,geminiKey,setGeminiKey,profile,setProfile,onSaveProfile,selModels,setSelModels,memories,onDeleteMemory,onAddMemory,open,onClose}) {
+function SettingsPanel({claudeKey,setClaudeKey,gptKey,setGptKey,geminiKey,setGeminiKey,profile,setProfile,onSaveProfile,selModels,setSelModels,memories,onDeleteMemory,onAddMemory,open,onClose}) {
   const [tab, setTab] = useState("models"); // "models" | "profile" | "memory"
   const [editP, setEditP] = useState(false);
   const [lp, setLp] = useState(profile);
@@ -322,6 +330,9 @@ function SettingsPanel({gptKey,setGptKey,geminiKey,setGeminiKey,profile,setProfi
           {/* API Keys */}
           <div style={{marginBottom:20,padding:"12px 14px",background:"#f8f8f8",borderRadius:10,border:"1px solid #efefef"}}>
             <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:10,letterSpacing:"0.05em"}}>API 키</div>
+            <label style={{fontSize:11,color:"#C85E3A",display:"block",marginBottom:4,fontWeight:600}}>ANTHROPIC (CLAUDE) KEY</label>
+            <input type="password" value={claudeKey} onChange={e=>setClaudeKey(e.target.value)} placeholder="sk-ant-..."
+              style={{width:"100%",padding:"7px 10px",border:"1.5px solid #e8e8e8",borderRadius:7,fontSize:12,color:"#111",outline:"none",fontFamily:"monospace",marginBottom:10,background:"#fff"}}/>
             <label style={{fontSize:11,color:"#0A7B5C",display:"block",marginBottom:4,fontWeight:600}}>OPENAI KEY</label>
             <input type="password" value={gptKey} onChange={e=>setGptKey(e.target.value)} placeholder="sk-..."
               style={{width:"100%",padding:"7px 10px",border:"1.5px solid #e8e8e8",borderRadius:7,fontSize:12,color:"#111",outline:"none",fontFamily:"monospace",marginBottom:10,background:"#fff"}}/>
@@ -566,6 +577,7 @@ function Sidebar({projects,chats,activeProjectId,activeChatId,onSelectProject,on
 // MAIN APP
 // ─────────────────────────────────────────────────────────────
 export default function App() {
+  const [claudeKey, setClaudeKey]   = useState("");
   const [gptKey, setGptKey]         = useState("");
   const [geminiKey, setGeminiKey]   = useState("");
   const [profile, setProfile]       = useState(DEFAULT_PROFILE);
@@ -593,7 +605,7 @@ export default function App() {
   // ── Persistence ──
   useEffect(()=>{
     try {
-      const k=localStorage.getItem("_ak"); if(k){const p=JSON.parse(k);setGptKey(p.g||"");setGeminiKey(p.gm||"");}
+      const k=localStorage.getItem("_ak"); if(k){const p=JSON.parse(k);setClaudeKey(p.c||"");setGptKey(p.g||"");setGeminiKey(p.gm||"");}
       const pr=localStorage.getItem("_pr"); if(pr) setProfile(pr);
       const sm=localStorage.getItem("_sm"); if(sm) setSelModels({...DEFAULT_SEL_MODELS,...JSON.parse(sm)});
       const pj=localStorage.getItem("_pj"); if(pj) setProjects(JSON.parse(pj));
@@ -602,7 +614,7 @@ export default function App() {
     } catch(e){}
   },[]);
 
-  const saveKeys=(g,gm)=>{ try{localStorage.setItem("_ak",JSON.stringify({g,gm}));}catch(e){} };
+  const saveKeys=(c,g,gm)=>{ try{localStorage.setItem("_ak",JSON.stringify({c,g,gm}));}catch(e){} };
   const saveSM=(sm)=>{ try{localStorage.setItem("_sm",JSON.stringify(sm));}catch(e){} };
   const savePj=(p)=>{ try{localStorage.setItem("_pj",JSON.stringify(p));}catch(e){} };
   const saveCh=(c)=>{ try{localStorage.setItem("_ch",JSON.stringify(c));}catch(e){} };
@@ -611,7 +623,7 @@ export default function App() {
   // Sync model changes
   useEffect(()=>saveSM(selModels),[selModels]);
   // Sync key changes
-  useEffect(()=>saveKeys(gptKey,geminiKey),[gptKey,geminiKey]);
+  useEffect(()=>saveKeys(claudeKey,gptKey,geminiKey),[claudeKey,gptKey,geminiKey]);
 
   const activeChat = chats.find(c=>c.id===activeChatId);
   const messages   = activeChat?.messages||[];
@@ -674,7 +686,7 @@ export default function App() {
   // ── Send ──
   const handleSend=async()=>{
     const q=input.trim(); if(!q||sending) return;
-    if(!gptKey||!geminiKey){setSettingsOpen(true);return;}
+    if(!claudeKey||!gptKey||!geminiKey){setSettingsOpen(true);return;}
 
     let chatId=activeChatId;
     if(!chatId){
@@ -709,7 +721,7 @@ export default function App() {
       setChats(prev=>{const u=prev.map(c=>c.id!==chatId?c:{...c,messages:[...c.messages,aiMsg],updatedAt:Date.now()}); saveCh(u); return u;});
       const upd=(k,st,txt)=>updateLastAiMsg(chatId,m=>({...m,responses:{...m.responses,[k]:{status:st,text:txt}}}));
       await Promise.all([
-        callClaude(mkCMsgs(q,imgs),sys,selModels.claude).then(t=>upd("claude","done",t)).catch(e=>upd("claude","error","오류: "+e.message)),
+        callClaude(mkCMsgs(q,imgs),sys,selModels.claude,claudeKey).then(t=>upd("claude","done",t)).catch(e=>upd("claude","error","오류: "+e.message)),
         callGPT(mkGMsgs(q,imgs),gptKey,sys,selModels.gpt).then(t=>upd("gpt","done",t)).catch(e=>upd("gpt","error","오류: "+e.message)),
         callGemini(mkGmParts(q,imgs),geminiKey,sys,selModels.gemini).then(t=>upd("gemini","done",t)).catch(e=>upd("gemini","error","오류: "+e.message)),
       ]);
@@ -727,7 +739,7 @@ export default function App() {
     const r0={};
     const q1=`다음에 대해 핵심 분석을 제공하세요:\n\n${q}`;
     await Promise.all([
-      callClaude(mkCMsgs(q1,imgs),sys,selModels.claude).then(t=>{r0.claude=t;updR("round0","claude","done",t);}).catch(e=>{r0.claude="오류: "+e.message;updR("round0","claude","error",r0.claude);}),
+      callClaude(mkCMsgs(q1,imgs),sys,selModels.claude,claudeKey).then(t=>{r0.claude=t;updR("round0","claude","done",t);}).catch(e=>{r0.claude="오류: "+e.message;updR("round0","claude","error",r0.claude);}),
       callGPT(mkGMsgs(q1,imgs),gptKey,sys,selModels.gpt).then(t=>{r0.gpt=t;updR("round0","gpt","done",t);}).catch(e=>{r0.gpt="오류: "+e.message;updR("round0","gpt","error",r0.gpt);}),
       callGemini(mkGmParts(q1,imgs),geminiKey,sys,selModels.gemini).then(t=>{r0.gemini=t;updR("round0","gemini","done",t);}).catch(e=>{r0.gemini="오류: "+e.message;updR("round0","gemini","error",r0.gemini);}),
     ]);
@@ -736,14 +748,14 @@ export default function App() {
     const r1={};
     const q2=(o)=>`원래 질문: ${q}\n\n다른 AI 분석:\n${o}\n\n논리적 허점을 지적하고 날카로운 인사이트를 추가하세요.`;
     await Promise.all([
-      callClaude(mkCMsgs(q2(`[GPT]\n${r0.gpt}\n\n[Gemini]\n${r0.gemini}`),imgs),sys,selModels.claude).then(t=>{r1.claude=t;updR("round1","claude","done",t);}).catch(e=>{r1.claude="오류: "+e.message;updR("round1","claude","error",r1.claude);}),
+      callClaude(mkCMsgs(q2(`[GPT]\n${r0.gpt}\n\n[Gemini]\n${r0.gemini}`),imgs),sys,selModels.claude,claudeKey).then(t=>{r1.claude=t;updR("round1","claude","done",t);}).catch(e=>{r1.claude="오류: "+e.message;updR("round1","claude","error",r1.claude);}),
       callGPT(mkGMsgs(q2(`[Claude]\n${r0.claude}\n\n[Gemini]\n${r0.gemini}`),imgs),gptKey,sys,selModels.gpt).then(t=>{r1.gpt=t;updR("round1","gpt","done",t);}).catch(e=>{r1.gpt="오류: "+e.message;updR("round1","gpt","error",r1.gpt);}),
       callGemini(mkGmParts(q2(`[Claude]\n${r0.claude}\n\n[GPT]\n${r0.gpt}`),imgs),geminiKey,sys,selModels.gemini).then(t=>{r1.gemini=t;updR("round1","gemini","done",t);}).catch(e=>{r1.gemini="오류: "+e.message;updR("round1","gemini","error",r1.gemini);}),
     ]);
 
     updateLastAiMsg(chatId,m=>({...m,final:{status:"loading"}}));
     const sq=`질문: ${q}\n\n[1R]\nClaude:${r0.claude}\nGPT:${r0.gpt}\nGemini:${r0.gemini}\n\n[2R]\nClaude:${r1.claude}\nGPT:${r1.gpt}\nGemini:${r1.gemini}\n\n종합:\n1. 공통 합의\n2. 의견 차이\n3. 최종 결론 및 실행 시사점`;
-    await callClaude([{role:"user",content:sq}],sys,selModels.claude)
+    await callClaude([{role:"user",content:sq}],sys,selModels.claude,claudeKey)
       .then(t=>updateLastAiMsg(chatId,m=>({...m,final:{status:"done",text:t}})))
       .catch(e=>updateLastAiMsg(chatId,m=>({...m,final:{status:"error",text:"오류: "+e.message}})));
 
@@ -753,7 +765,7 @@ export default function App() {
   };
 
   const onKey=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();handleSend();}};
-  const connected=gptKey&&geminiKey;
+  const connected=claudeKey&&gptKey&&geminiKey;
 
   return <>
     <style>{`
@@ -881,6 +893,7 @@ export default function App() {
     </div>
 
     <SettingsPanel
+      claudeKey={claudeKey} setClaudeKey={setClaudeKey}
       gptKey={gptKey} setGptKey={setGptKey} geminiKey={geminiKey} setGeminiKey={setGeminiKey}
       profile={profile} setProfile={setProfile} onSaveProfile={p=>{setProfile(p);try{localStorage.setItem("_pr",p);}catch(e){}}}
       selModels={selModels} setSelModels={setSelModels}
