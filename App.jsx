@@ -28,7 +28,7 @@ const IMG_MODELS = [
 const DEFAULT_SEL_MODELS = {
   claude: "claude-sonnet-4-20250514",
   gpt:    "gpt-4o",
-  gemini: "gemini-1.5-pro",
+  gemini: "gemini-1.5-flash",
   img:    "dalle",
 };
 
@@ -188,10 +188,10 @@ async function callGPT(msgs, key, sys, model="gpt-4o") {
   const d=await r.json(); if(d.error) throw new Error(d.error.message);
   return d.choices[0].message.content;
 }
-async function callGemini(parts, key, sys, model="gemini-1.5-pro") {
+async function callGemini(parts, key, sys, model="gemini-1.5-flash") {
   const modelId = model==="gemini-2.5-pro" ? "gemini-2.5-pro-preview-03-25"
-    : model==="gemini-1.5-pro" ? "gemini-1.5-pro-latest"
-    : model==="gemini-2.0-flash" ? "gemini-2.0-flash-latest" : model;
+    : model==="gemini-1.5-pro" ? "gemini-1.5-flash"
+    : model==="gemini-2.0-flash" ? "gemini-2.0-flash" : model;
   const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${key}`,{
     method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({system_instruction:{parts:[{text:sys}]},contents:[{role:"user",parts:Array.isArray(parts)?parts:[{text:parts}]}],generationConfig:{maxOutputTokens:1400}})});
