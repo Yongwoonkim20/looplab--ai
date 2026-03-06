@@ -17,8 +17,8 @@ const GPT_MODELS = [
 ];
 const GEMINI_MODELS = [
   { id: "gemini-2.5-pro",    label: "Gemini 2.5 Pro",    badge: "최고성능", desc: "추론·분석 전반 최고 · 최신" },
-  { id: "gemini-2.0-flash",  label: "Gemini 2.0 Flash",  badge: "안정",     desc: "빠르고 저렴 · 안정적" },
-  { id: "gemini-2.0-flash",  label: "Gemini 2.0 Flash",  badge: "빠름",     desc: "매우 빠름 · 실시간 응답" },
+  { id: "gemini-2.5-flash",  label: "Gemini 2.5 Flash",  badge: "안정",     desc: "빠르고 저렴 · 안정적" },
+  { id: "gemini-2.5-flash",  label: "Gemini 2.5 Flash",  badge: "빠름",     desc: "매우 빠름 · 실시간 응답" },
 ];
 const IMG_MODELS = [
   { id: "dalle",       label: "DALL-E 3",        desc: "OpenAI · 고품질 이미지" },
@@ -28,7 +28,7 @@ const IMG_MODELS = [
 const DEFAULT_SEL_MODELS = {
   claude: "claude-sonnet-4-20250514",
   gpt:    "gpt-4o",
-  gemini: "gemini-2.0-flash",
+  gemini: "gemini-2.5-flash",
   img:    "dalle",
 };
 
@@ -188,10 +188,10 @@ async function callGPT(msgs, key, sys, model="gpt-4o") {
   const d=await r.json(); if(d.error) throw new Error(d.error.message);
   return d.choices[0].message.content;
 }
-async function callGemini(parts, key, sys, model="gemini-2.0-flash") {
+async function callGemini(parts, key, sys, model="gemini-2.5-flash") {
   const modelId = model==="gemini-2.5-pro" ? "gemini-2.5-pro-preview-03-25"
-    : model==="gemini-1.5-pro" ? "gemini-2.0-flash"
-    : model==="gemini-2.0-flash" ? "gemini-2.0-flash" : model;
+    : model==="gemini-1.5-pro" ? "gemini-2.5-flash"
+    : model==="gemini-2.5-flash" ? "gemini-2.5-flash" : model;
   const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${key}`,{
     method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({system_instruction:{parts:[{text:sys}]},contents:[{role:"user",parts:Array.isArray(parts)?parts:[{text:parts}]}],generationConfig:{maxOutputTokens:1400}})});
