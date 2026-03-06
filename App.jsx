@@ -192,7 +192,7 @@ async function callGemini(parts, key, sys, model="gemini-1.5-pro") {
   const modelId = model==="gemini-2.5-pro" ? "gemini-2.5-pro-preview-03-25"
     : model==="gemini-2.0-flash" ? "gemini-2.0-flash" : model;
   const apiVer = modelId.startsWith("gemini-2") ? "v1beta" : "v1";
-  const r=await fetch(`https://generativelanguage.googleapis.com/\${apiVer}/models/${modelId}:generateContent?key=${key}`,{
+  const r=await fetch(`https://generativelanguage.googleapis.com/${apiVer}/models/${modelId}:generateContent?key=${key}`,{
     method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({system_instruction:{parts:[{text:sys}]},contents:[{role:"user",parts:Array.isArray(parts)?parts:[{text:parts}]}],generationConfig:{maxOutputTokens:1400}})});
   const d=await r.json(); if(d.error) throw new Error(d.error.message);
