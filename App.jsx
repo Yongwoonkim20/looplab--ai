@@ -577,9 +577,9 @@ function Sidebar({projects,chats,activeProjectId,activeChatId,onSelectProject,on
 // MAIN APP
 // ─────────────────────────────────────────────────────────────
 export default function App() {
-  const [claudeKey, setClaudeKey]   = useState("");
-  const [gptKey, setGptKey]         = useState("");
-  const [geminiKey, setGeminiKey]   = useState("");
+  const [claudeKey, setClaudeKey]   = useState(import.meta.env.VITE_ANTHROPIC_KEY||"");
+  const [gptKey, setGptKey]         = useState(import.meta.env.VITE_OPENAI_KEY||"");
+  const [geminiKey, setGeminiKey]   = useState(import.meta.env.VITE_GEMINI_KEY||"");
   const [profile, setProfile]       = useState(DEFAULT_PROFILE);
   const [selModels, setSelModels]   = useState(DEFAULT_SEL_MODELS);
   const [memories, setMemories]     = useState([]); // string[]
@@ -605,7 +605,7 @@ export default function App() {
   // ── Persistence ──
   useEffect(()=>{
     try {
-      const k=localStorage.getItem("_ak"); if(k){const p=JSON.parse(k);setClaudeKey(p.c||"");setGptKey(p.g||"");setGeminiKey(p.gm||"");}
+      const k=localStorage.getItem("_ak"); if(k){const p=JSON.parse(k);setClaudeKey(p.c||import.meta.env.VITE_ANTHROPIC_KEY||"");setGptKey(p.g||import.meta.env.VITE_OPENAI_KEY||"");setGeminiKey(p.gm||import.meta.env.VITE_GEMINI_KEY||"");}
       const pr=localStorage.getItem("_pr"); if(pr) setProfile(pr);
       const sm=localStorage.getItem("_sm"); if(sm) setSelModels({...DEFAULT_SEL_MODELS,...JSON.parse(sm)});
       const pj=localStorage.getItem("_pj"); if(pj) setProjects(JSON.parse(pj));
