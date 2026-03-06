@@ -190,7 +190,8 @@ async function callGPT(msgs, key, sys, model="gpt-4o") {
 }
 async function callGemini(parts, key, sys, model="gemini-1.5-pro") {
   const modelId = model==="gemini-2.5-pro" ? "gemini-2.5-pro-preview-03-25"
-    : model==="gemini-2.0-flash" ? "gemini-2.0-flash" : model;
+    : model==="gemini-1.5-pro" ? "gemini-1.5-pro-latest"
+    : model==="gemini-2.0-flash" ? "gemini-2.0-flash-latest" : model;
   const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${key}`,{
     method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({system_instruction:{parts:[{text:sys}]},contents:[{role:"user",parts:Array.isArray(parts)?parts:[{text:parts}]}],generationConfig:{maxOutputTokens:1400}})});
